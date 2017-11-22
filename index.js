@@ -122,36 +122,37 @@ class EventDispatcher {
   constructor() {
     this.dispatchTable = {}
   }
+  getOrCreateEmitter(topic, key) {
+    const emitter = this.getEmitter(topic, key)
+    if (emitter) {
+      return emitter
+    } else {
+      if (!this.dispatchTable[topic]) {
+        this.dispatchTable[topic] = {}
+      }
+      this.dispatchTable[topic][key] = new EventEmitter()
+      return this.dispatchTable[topic][key]
+    }
+  }
+  getEmitter(topic, key) {
+    return this.dispatchTable[topic] && this.dispatchTable[topic][key]
+  }
   addHandler(topic, key, handler) {
-    if(!this.dispatchTable[topic]) {
-      this.dispatchTable[topic] = {}
-    }
-    if (!this.dispatchTable[topic][key]) {
-      this.dispatchTable[topic][key] = []
-    }
-    this.dispatchTable[topic][key].push(handler)
+    this.getOrCreateEmitter(topic, key).on('message', handler)
   }
   removeHandler(topic, key, handler) {
-    if (!this.dispatchTable[topic] || !this.dispatchTable[topic][key]) {
-      return
-    }
-    this.dispatchTable[topic][key] = this.dispatchTable[topic][key].filter(x => x != handler)
-
-    if(this.dispatchTable[topic][key].length < 1) {
-      delete this.dispatchTable[topic][key]
-    }
-    if (Object.keys(this.dispatchTable[topic]).length === 0) {
-      delete this.dispatchTable[topic]
-    }
-  }
-  incomingEvent(e) {
-    const node = this.dispatchTable[e.topic] && this.dispatchTable[e.topic][e.key]
+    const node = this.getEmitter(topic, key)
     if (!node) {
       return
     }
-    e.data.forEach(data => {
-      (node || []).map(fn => fn(data))
-    })
+    node.off('message', handler)
+  }
+  incomingEvent(e) {
+    const emitter = this.getEmitter(e.topic, e.key)
+    if (!emitter) {
+      return
+    }
+    e.data.forEach(data => emitter.emit('message', data))
   }
 }
 
