@@ -56,11 +56,13 @@ class LatchedTimer {
 class EventStoreProtocol extends EventEmitter {
   constructor(socket) {
     super()
+    this.buffer = []
     this.socket = socket
     this.socket.binaryType = "arraybuffer";
-    this.connected = false
     this.socket.addEventListener('open', () => {
-      this.connected = true
+      const buffered = this.buffer
+      this.buffer = []
+      buffered.forEach(x => this.socket.send(x))
       this.emit('open')
     })
     this.socket.addEventListener('message', e => {
@@ -68,20 +70,19 @@ class EventStoreProtocol extends EventEmitter {
     })
   }
 
-  isAvaliable() {
-    return this.connected
-  }
-
   sendControlPacket(data) {
-    const writer = ControlPacket.encode(data)
-    this.socket.send(writer.finish())
+    const bytes = ControlPacket.encode(data).finish()
+    if (this.socket.readyState != WebSocket.OPEN) {
+      this.buffer.push(bytes)
+    } else {
+      this.socket.send(bytes)
+    }
   }
 }
 
 class BatchManager extends EventEmitter {
-  constructor(isAvaliable) {
+  constructor() {
     super()
-    this.isAvaliable = isAvaliable
     this.subscriptions = {}
     this.pendingSubs = []
     this.pendingUnsubs = []
@@ -104,11 +105,6 @@ class BatchManager extends EventEmitter {
   }
 
   flush() {
-    if (!this.isAvaliable()) {
-      this.timer.schedule()
-      return
-    }
-
     const newSubs = calcUpdates({}, this.pendingSubs, this.pendingUnsubs)
         
     const pck = ControlPacket.fromObject({
@@ -166,7 +162,8 @@ class Client {
     this.eventDispatcher = new EventDispatcher()
     this.protocol = new EventStoreProtocol(mkSocket())
     this.protocol.on('message', this.eventDispatcher.incomingEvent.bind(this.eventDispatcher))
-    this.subMgr = new BatchManager(this.protocol.isAvaliable.bind(this.protocol))
+    this.subMgr = new BatchManager()
+    this.protocol.on('open', this.subMgr.flush.bind(this.subMgr))
     this.subMgr.on('flush', this.protocol.sendControlPacket.bind(this.protocol))
                                   
     this.rewind = this.subMgr.rewind.bind(this.subMgr)
