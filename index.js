@@ -9,7 +9,6 @@ const eventBatchToEvents = e =>
       e.data.map(x => ({ topic: e.topic, key: e.key, data: x }))
 
 const calcUpdates = (initial, subs, unsubs) => {
-  // Write as reduce?
   const topics = subs
         .reduce((acc, {topic, key}) => {
           if (!acc[topic]) {
@@ -17,7 +16,7 @@ const calcUpdates = (initial, subs, unsubs) => {
           } else {
             acc[topic].keysToAdd.push(key)
           }
-        }, {})
+        }, initial)
 
   return unsubs
     .reduce((acc, {topic, key}) => {
