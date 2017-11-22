@@ -8,10 +8,9 @@
   },
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "websocket": "^1.0.25"
-  },
   "dependencies": {
-    "@zensum/event-store-proto": "^1.0.2"
+    "@zensum/event-store-proto": "^1.0.2",
+    "protobufjs": "^6.8.0",
+    "ws": "^3.3.2"
   }
 }
