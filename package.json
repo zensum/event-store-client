@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@zensum/event-store-proto": "^1.0.2",
+    "event-emitter-es6": "^1.1.5",
     "protobufjs": "^6.8.0",
     "ws": "^3.3.2"
   }

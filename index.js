@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const proto = require('@zensum/event-store-proto')
+const EventEmitter = require('event-emitter-es6')
 
 const {ControlPacket, Event} = proto.se.zensum.event_store_proto
 
@@ -16,15 +17,17 @@ const calcUpdates = (initial, subs, unsubs) => {
           } else {
             acc[topic].keysToAdd.push(key)
           }
+          return acc
         }, initial)
 
   return unsubs
     .reduce((acc, {topic, key}) => {
       if (!topics[topic]) {
-        topics[topic] = { topic, keysToRemove: [key] }
+        acc[topic] = { topic, keysToRemove: [key] }
       } else {
-        topics[topic].keysToRemove.push(key)
+        acc[topic].keysToRemove.push(key)
       }
+      return acc
     }, topics)
 }
 
@@ -50,14 +53,19 @@ class LatchedTimer {
   }
 }
 
-class EventStoreProtocol {
-  constructor(socket, onMessage) {
+class EventStoreProtocol extends EventEmitter {
+  constructor(socket) {
+    super()
     this.socket = socket
     this.socket.binaryType = "arraybuffer";
-    this.socket.addEventListener('open', this.onOpen.bind(this))
-    this.socket.addEventListener('message', this.onMessage.bind(this))
     this.connected = false
-    this.onMessageHandler = onMessage
+    this.socket.addEventListener('open', () => {
+      this.connected = true
+      this.emit('open')
+    })
+    this.socket.addEventListener('message', e => {
+      this.emit('message', Event.decode(new Uint8Array(e.data)))
+    })
   }
 
   isAvaliable() {
@@ -68,22 +76,12 @@ class EventStoreProtocol {
     const writer = ControlPacket.encode(data)
     this.socket.send(writer.finish())
   }
-
-  onOpen() {
-    this.connected = true
-  }
-
-  onMessage(e) {
-    const event = Event.decode(new Uint8Array(e.data))
-    this.onMessageHandler(event)
-  }
 }
 
-class BatchManager {
-  constructor(onFlush, isAvaliable) {
-    this.onFlush = onFlush
+class BatchManager extends EventEmitter {
+  constructor(isAvaliable) {
+    super()
     this.isAvaliable = isAvaliable
-    
     this.subscriptions = {}
     this.pendingSubs = []
     this.pendingUnsubs = []
@@ -114,12 +112,12 @@ class BatchManager {
     const newSubs = calcUpdates({}, this.pendingSubs, this.pendingUnsubs)
         
     const pck = ControlPacket.fromObject({
-      subscriptions: Object.keys(res).map(x => res[x]),
+      subscriptions: Object.keys(newSubs).map(x => newSubs[x]),
       rewinds: this.pendingRewinds, // Dedup this?
     })
 
-    this.subscriptions = calcUpdates({}, this.pendingSubs, this.pendingUnsubs)
-    this.onFlush(pck)
+    this.subscriptions = calcUpdates(this.subscriptions, this.pendingSubs, this.pendingUnsubs)
+    this.emit('flush', pck)
   }
   
 }
@@ -166,13 +164,11 @@ const mkSocket = () => new WebSocket('ws://event-store.5z.fyi/realtime')
 class Client {
   constructor() {
     this.eventDispatcher = new EventDispatcher()
-    
-    this.protocol = new EventStoreProtocol(
-      mkSocket(),
-      this.eventDispatcher.incomingEvent.bind(this.eventDispatcher)
-    )
-    this.subMgr = new BatchManager(this.protocol.sendControlPacket.bind(this.protocol),
-                                   this.protocol.isAvaliable.bind(this.protocol))
+    this.protocol = new EventStoreProtocol(mkSocket())
+    this.protocol.on('message', this.eventDispatcher.incomingEvent.bind(this.eventDispatcher))
+    this.subMgr = new BatchManager(this.protocol.isAvaliable.bind(this.protocol))
+    this.subMgr.on('flush', this.protocol.sendControlPacket.bind(this.protocol))
+                                  
     this.rewind = this.subMgr.rewind.bind(this.subMgr)
   }
 
