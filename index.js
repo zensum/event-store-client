@@ -8,27 +8,25 @@ const CTL_UPDATE_DELAY = 100
 const eventBatchToEvents = e => 
       e.data.map(x => ({ topic: e.topic, key: e.key, data: x }))
 
-
-const calcUpdates = (subs, unsubs) => {
-  const topics = {}
+const calcUpdates = (initial, subs, unsubs) => {
   // Write as reduce?
-  subs.forEach(({topic, key}) => {
-    if (!topics[topic]) {
-      topics[topic] = { topic, keysToAdd: [key], keysToRemove: [] }
-    } else {
-      topics[topic].keysToAdd.push(key)
-    }
-  })
+  const topics = subs
+        .reduce((acc, {topic, key}) => {
+          if (!acc[topic]) {
+            acc[topic] = { topic, keysToAdd: [key], keysToRemove: [] }
+          } else {
+            acc[topic].keysToAdd.push(key)
+          }
+        }, {})
 
-  unsubs.forEach(({topic, key}) => {
-    if (!topics[topic]) {
-      topics[topic] = { topic, keysToRemove: [key] }
-    } else {
-      topics[topic].keysToRemove.push(key)
-    }
-  })
-
-  return topics
+  return unsubs
+    .reduce((acc, {topic, key}) => {
+      if (!topics[topic]) {
+        topics[topic] = { topic, keysToRemove: [key] }
+      } else {
+        topics[topic].keysToRemove.push(key)
+      }
+    }, topics)
 }
 
 class LatchedTimer {
@@ -114,14 +112,14 @@ class BatchManager {
       return
     }
 
-    const res = calcUpdates(this.pendingSubs, this.pendingUnsubs)
+    const newSubs = calcUpdates({}, this.pendingSubs, this.pendingUnsubs)
         
     const pck = ControlPacket.fromObject({
       subscriptions: Object.keys(res).map(x => res[x]),
       rewinds: this.pendingRewinds, // Dedup this?
     })
 
-    this.subscriptions = res
+    this.subscriptions = calcUpdates({}, this.pendingSubs, this.pendingUnsubs)
     this.onFlush(pck)
   }
   
