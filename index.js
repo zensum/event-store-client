@@ -156,17 +156,15 @@ class EventDispatcher {
   }
 }
 
-const mkSocket = () => new WebSocket('ws://event-store.5z.fyi/realtime')
-
 class Client {
-  constructor() {
+  constructor(url) {
+    const socket = new WebSocket(url)
     this.eventDispatcher = new EventDispatcher()
-    this.protocol = new EventStoreProtocol(mkSocket())
-    this.protocol.on('message', this.eventDispatcher.incomingEvent.bind(this.eventDispatcher))
+    const protocol = new EventStoreProtocol(socket)
+    protocol.on('message', this.eventDispatcher.incomingEvent.bind(this.eventDispatcher))
     this.subMgr = new BatchManager()
-    this.protocol.on('open', this.subMgr.flush.bind(this.subMgr))
-    this.subMgr.on('flush', this.protocol.sendControlPacket.bind(this.protocol))
-                                  
+    this.subMgr.on('flush', protocol.sendControlPacket.bind(this.protocol))
+    protocol.on('open', this.subMgr.flush.bind(this.subMgr))
     this.rewind = this.subMgr.rewind.bind(this.subMgr)
   }
 
