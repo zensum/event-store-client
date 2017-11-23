@@ -179,7 +179,4 @@ class Client {
   }
 }
 
-const cli = new Client()
-
-cli.subscribe("sms", "AAABXsUq9uIKAAMzAAAAAA", x => console.log(x.length))
-cli.rewind("sms", ["AAABXsUq9uIKAAMzAAAAAA"], false, 100)
+module.exports = Client
