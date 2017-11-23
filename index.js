@@ -1,4 +1,4 @@
-const WebSocket = require('ws');
+const WebSocket = process.title === "browser" ? window.WebSocket : require('ws');
 const proto = require('@zensum/event-store-proto')
 const EventEmitter = require('event-emitter-es6')
 
