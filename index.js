@@ -163,7 +163,7 @@ class Client {
     const protocol = new EventStoreProtocol(socket)
     protocol.on('message', this.eventDispatcher.incomingEvent.bind(this.eventDispatcher))
     this.subMgr = new BatchManager()
-    this.subMgr.on('flush', protocol.send.bind(this.protocol))
+    this.subMgr.on('flush', protocol.send.bind(protocol))
     protocol.on('open', this.subMgr.flush.bind(this.subMgr))
     this.rewind = this.subMgr.rewind.bind(this.subMgr)
   }
