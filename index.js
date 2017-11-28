@@ -112,6 +112,8 @@ class BatchManager extends EventEmitter {
       rewinds: this.pendingRewinds, // Dedup this?
     })
 
+    this.pendingRewinds = []
+
     this.subscriptions = calcUpdates(this.subscriptions, this.pendingSubs, this.pendingUnsubs)
     this.emit('flush', pck)
   }
