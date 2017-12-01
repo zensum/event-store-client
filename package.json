@@ -2,16 +2,20 @@
   "name": "@zensum/event-store-client",
   "version": "0.1.1",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@zensum/event-store-proto": "^1.0.2",
+    "@zensum/event-store-proto": "^1.1.0",
     "event-emitter-es6": "^1.1.5",
     "protobufjs": "^6.8.0",
     "ws": "^3.3.2"
+  },
+  "devDependencies": {
+    "typescript": "^2.6.2"
   }
 }

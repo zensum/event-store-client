@@ -1,28 +1,64 @@
+import * as proto from "@zensum/event-store-proto";
+const EventEmitter = require("event-emitter-es6") as IEventEmitter;
 const WebSocket =
-  process.title === "browser" ? window.WebSocket : require("ws");
-const proto = require("@zensum/event-store-proto");
-const EventEmitter = require("event-emitter-es6");
-
-const { ControlPacket, Event } = proto.se.zensum.event_store_proto;
+  typeof window !== "undefined" ? (window as any).WebSocket : require("ws");
 
 const CTL_UPDATE_DELAY = 100;
 
-const eventBatchToEvents = e =>
-  e.data.map(x => ({ topic: e.topic, key: e.key, data: x }));
+const { ControlPacket, Event: ProtoEvent } = proto.se.zensum.event_store_proto;
+type IEvent = proto.se.zensum.event_store_proto.IEvent;
+type IControlPacket = proto.se.zensum.event_store_proto.IControlPacket;
 
-const calcUpdates = (initial, subs, unsubs) => {
-  const topics = subs.reduce((acc, { topic, key }) => {
-    if (!acc[topic]) {
-      acc[topic] = { topic, keysToAdd: [key], keysToRemove: [] };
-    } else {
-      acc[topic].keysToAdd.push(key);
-    }
-    return acc;
-  }, initial);
+interface IEventEmitter {
+  new (): any;
+  on(event: string, handler: EventHandler): void;
+  off(event: string, handler: EventHandler): void;
+  emit(event: string, data: any): void;
+}
+
+interface Subscription {
+  topic: Topic;
+  keysToAdd: string[];
+  keysToRemove: string[];
+}
+
+interface PendingSubscription {
+  topic: Topic;
+  key: Key;
+}
+
+interface PendingRewind {
+  topic: Topic;
+  keys: Key[];
+  fromStart: boolean;
+  n: number;
+}
+
+type Subscriptions = Record<Topic, Record<Key, boolean>>;
+
+type Topic = string;
+
+type Key = string;
+
+const calcUpdates = (
+  subs: PendingSubscription[],
+  unsubs: PendingSubscription[]
+) => {
+  const topics = subs.reduce(
+    (acc, { topic, key }) => {
+      if (!acc[topic]) {
+        acc[topic] = { topic, keysToAdd: [key], keysToRemove: [] };
+      } else {
+        acc[topic].keysToAdd.push(key);
+      }
+      return acc;
+    },
+    {} as Record<string, Subscription>
+  );
 
   return unsubs.reduce((acc, { topic, key }) => {
     if (!topics[topic]) {
-      acc[topic] = { topic, keysToRemove: [key] };
+      acc[topic] = { topic, keysToAdd: [], keysToRemove: [key] };
     } else {
       acc[topic].keysToRemove.push(key);
     }
@@ -31,7 +67,11 @@ const calcUpdates = (initial, subs, unsubs) => {
 };
 
 class LatchedTimer {
-  constructor(target, interval) {
+  target: Function;
+  interval: number;
+  latch: boolean;
+
+  constructor(target: Function, interval: number) {
     this.target = target;
     this.interval = interval;
     this.latch = false;
@@ -53,7 +93,10 @@ class LatchedTimer {
 }
 
 class EventStoreProtocol extends EventEmitter {
-  constructor(socket) {
+  socket: WebSocket;
+  buffer: Uint8Array[];
+
+  constructor(socket: WebSocket) {
     super();
     this.buffer = [];
     this.socket = socket;
@@ -61,15 +104,15 @@ class EventStoreProtocol extends EventEmitter {
     this.socket.addEventListener("open", () => {
       const buffered = this.buffer;
       this.buffer = [];
-      buffered.forEach(x => this.socket.send(x));
+      buffered.forEach(bytes => this.socket.send(bytes));
       this.emit("open");
     });
     this.socket.addEventListener("message", e => {
-      this.emit("message", Event.decode(new Uint8Array(e.data)));
+      this.emit("message", ProtoEvent.decode(new Uint8Array(e.data)));
     });
   }
 
-  send(data) {
+  send(data: IControlPacket) {
     const bytes = ControlPacket.encode(data).finish();
     if (this.socket.readyState != WebSocket.OPEN) {
       this.buffer.push(bytes);
@@ -80,6 +123,11 @@ class EventStoreProtocol extends EventEmitter {
 }
 
 class BatchManager extends EventEmitter {
+  subscriptions: Subscriptions;
+  pendingSubs: PendingSubscription[];
+  pendingUnsubs: PendingSubscription[];
+  pendingRewinds: PendingRewind[];
+
   constructor() {
     super();
     this.subscriptions = {};
@@ -89,7 +137,7 @@ class BatchManager extends EventEmitter {
     this.timer = new LatchedTimer(this.flush.bind(this), CTL_UPDATE_DELAY);
   }
 
-  subscribe(topic, key, subscriptionState) {
+  subscribe(topic: Topic, key: Key, subscriptionState: boolean) {
     const subscribed =
       this.subscriptions[topic] && this.subscriptions[topic][key];
     const targetList = subscriptionState
@@ -101,35 +149,47 @@ class BatchManager extends EventEmitter {
     this.timer.schedule();
   }
 
-  rewind(topic, keys, fromStart, n) {
+  rewind(topic: Topic, keys: string[], fromStart: boolean, n: number) {
     this.pendingRewinds.push({ topic, keys, fromStart, n });
     this.timer.schedule();
   }
 
-  flush() {
-    const newSubs = calcUpdates({}, this.pendingSubs, this.pendingUnsubs);
+  setSubscription(state: boolean) {
+    return (s: PendingSubscription) => {
+      if (!this.subscriptions[s.topic]) {
+        this.subscriptions[s.topic] = {};
+      }
+      this.subscriptions[s.topic][s.key] = state;
+    };
+  }
 
-    const pck = ControlPacket.fromObject({
+  flush() {
+    const newSubs = calcUpdates(this.pendingSubs, this.pendingUnsubs);
+
+    const pck: IControlPacket = ControlPacket.fromObject({
       subscriptions: Object.keys(newSubs).map(x => newSubs[x]),
       rewinds: this.pendingRewinds // Dedup this?
     });
 
-    this.pendingRewinds = [];
+    this.pendingSubs.forEach(this.setSubscription(true));
+    this.pendingUnsubs.forEach(this.setSubscription(false));
 
-    this.subscriptions = calcUpdates(
-      this.subscriptions,
-      this.pendingSubs,
-      this.pendingUnsubs
-    );
+    this.pendingRewinds = [];
+    this.pendingUnsubs = [];
+    this.pendingSubs = [];
+
     this.emit("flush", pck);
   }
 }
 
+type EventHandler = (data: Uint8Array) => void;
+
 class EventDispatcher {
+  dispatchTable: { [topic in Topic]: { [key in Key]: IEventEmitter } };
   constructor() {
     this.dispatchTable = {};
   }
-  getOrCreateEmitter(topic, key) {
+  getOrCreateEmitter(topic: Topic, key: Key) {
     const emitter = this.getEmitter(topic, key);
     if (emitter) {
       return emitter;
@@ -141,20 +201,23 @@ class EventDispatcher {
       return this.dispatchTable[topic][key];
     }
   }
-  getEmitter(topic, key) {
+  getEmitter(topic: Topic, key: Key) {
     return this.dispatchTable[topic] && this.dispatchTable[topic][key];
   }
-  addHandler(topic, key, handler) {
+  addHandler(topic: Topic, key: Key, handler: EventHandler) {
     this.getOrCreateEmitter(topic, key).on("message", handler);
   }
-  removeHandler(topic, key, handler) {
+  removeHandler(topic: Topic, key: Key, handler: EventHandler) {
     const node = this.getEmitter(topic, key);
     if (!node) {
       return;
     }
     node.off("message", handler);
   }
-  incomingEvent(e) {
+  incomingEvent(e: IEvent) {
+    if (!e.topic || !e.key || !e.data) {
+      return;
+    }
     const emitter = this.getEmitter(e.topic, e.key);
     if (!emitter) {
       return;
@@ -164,7 +227,11 @@ class EventDispatcher {
 }
 
 class Client {
-  constructor(url) {
+  eventDispatcher: EventDispatcher;
+  subMgr: BatchManager;
+  rewind: (topic: Topic, keys: string[], fromStart: boolean, n: number) => void;
+
+  constructor(url: string) {
     const socket = new WebSocket(url);
     this.eventDispatcher = new EventDispatcher();
     const protocol = new EventStoreProtocol(socket);
@@ -178,12 +245,12 @@ class Client {
     this.rewind = this.subMgr.rewind.bind(this.subMgr);
   }
 
-  subscribe(topic, key, handler) {
+  subscribe(topic: Topic, key: Key, handler: EventHandler) {
     this.eventDispatcher.addHandler(topic, key, handler);
     this.subMgr.subscribe(topic, key, true);
   }
 
-  unsubscribe(topic, key, handler) {
+  unsubscribe(topic: Topic, key: Key, handler: EventHandler) {
     this.eventDispatcher.removeHandler(topic, key, handler);
     this.subMgr.unsubscribe(topic, key, false);
   }

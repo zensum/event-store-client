@@ -53,9 +53,9 @@
   version "7.0.48"
   resolved "https://registry.npmjs.org/@types/node/-/node-7.0.48.tgz#24bfdc0aa82e8f6dbd017159c58094a2e06d0abb"
 
-"@zensum/event-store-proto@^1.0.2":
-  version "1.0.2"
-  resolved "https://registry.npmjs.org/@zensum/event-store-proto/-/event-store-proto-1.0.2.tgz#f0130c939b1b9ce31ebdb8804e031ab2658f6b47"
+"@zensum/event-store-proto@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.npmjs.org/@zensum/event-store-proto/-/event-store-proto-1.1.0.tgz#513109896c42df586eb506813c1026f7ff2dc3e2"
 
 async-limiter@~1.0.0:
   version "1.0.0"
@@ -90,6 +90,10 @@ protobufjs@^6.8.0:
 safe-buffer@~5.1.0:
   version "5.1.1"
   resolved "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.1.tgz#893312af69b2123def71f57889001671eeb2c853"
+
+typescript@^2.6.2:
+  version "2.6.2"
+  resolved "https://registry.npmjs.org/typescript/-/typescript-2.6.2.tgz#3c5b6fd7f6de0914269027f03c0946758f7673a4"
 
 ultron@~1.1.0:
   version "1.1.0"

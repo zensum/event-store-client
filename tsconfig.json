@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/",
+    "module": "commonjs",
+    "target": "ES5",
+    "sourceMap": true,
+    "allowJs": true,
+    "allowSyntheticDefaultImports": false,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "pretty": true,
+    "removeComments": true,
+    "strictFunctionTypes": true,
+    "strictNullChecks": true
+  },
+  "include": [
+    "src/**/*"
+  ]
+}
