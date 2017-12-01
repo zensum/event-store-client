@@ -1,5 +1,5 @@
 import * as proto from "@zensum/event-store-proto";
-const EventEmitter = require("event-emitter-es6") as IEventEmitter;
+import EventEmitter from "event-emitter-es6";
 const WebSocket =
   typeof window !== "undefined" ? (window as any).WebSocket : require("ws");
 
@@ -8,13 +8,6 @@ const CTL_UPDATE_DELAY = 100;
 const { ControlPacket, Event: ProtoEvent } = proto.se.zensum.event_store_proto;
 type IEvent = proto.se.zensum.event_store_proto.IEvent;
 type IControlPacket = proto.se.zensum.event_store_proto.IControlPacket;
-
-interface IEventEmitter {
-  new (): any;
-  on(event: string, handler: EventHandler): void;
-  off(event: string, handler: EventHandler): void;
-  emit(event: string, data: any): void;
-}
 
 interface Subscription {
   topic: Topic;
@@ -185,7 +178,7 @@ class BatchManager extends EventEmitter {
 type EventHandler = (data: Uint8Array) => void;
 
 class EventDispatcher {
-  dispatchTable: { [topic in Topic]: { [key in Key]: IEventEmitter } };
+  dispatchTable: { [topic in Topic]: { [key in Key]: EventEmitter } };
   constructor() {
     this.dispatchTable = {};
   }
