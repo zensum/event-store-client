@@ -120,6 +120,7 @@ class BatchManager extends EventEmitter {
   pendingSubs: PendingSubscription[];
   pendingUnsubs: PendingSubscription[];
   pendingRewinds: PendingRewind[];
+  timer: LatchedTimer;
 
   constructor() {
     super();
@@ -245,7 +246,7 @@ class Client {
 
   unsubscribe(topic: Topic, key: Key, handler: EventHandler) {
     this.eventDispatcher.removeHandler(topic, key, handler);
-    this.subMgr.unsubscribe(topic, key, false);
+    this.subMgr.subscribe(topic, key, false);
   }
 }
 
