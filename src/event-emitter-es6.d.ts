@@ -5,5 +5,5 @@ declare module "event-emitter-es6" {
     emit(event: string, ...args: any[]): void;
   }
 
-  export default EventEmitter;
+  export = EventEmitter;
 }

@@ -1,5 +1,5 @@
 import * as proto from "@zensum/event-store-proto";
-import EventEmitter from "event-emitter-es6";
+import EventEmitter = require("event-emitter-es6");
 const WebSocket =
   typeof window !== "undefined" ? (window as any).WebSocket : require("ws");
 
