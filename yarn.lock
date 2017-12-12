@@ -53,9 +53,9 @@
   version "7.0.48"
   resolved "https://registry.npmjs.org/@types/node/-/node-7.0.48.tgz#24bfdc0aa82e8f6dbd017159c58094a2e06d0abb"
 
-"@zensum/event-store-proto@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.npmjs.org/@zensum/event-store-proto/-/event-store-proto-1.1.0.tgz#513109896c42df586eb506813c1026f7ff2dc3e2"
+"@zensum/event-store-proto@^1.2.1":
+  version "1.2.1"
+  resolved "https://registry.npmjs.org/@zensum/event-store-proto/-/event-store-proto-1.2.1.tgz#3041a37ff06115ef33de01291f1f8c0c2d6d4d0f"
 
 async-limiter@~1.0.0:
   version "1.0.0"
