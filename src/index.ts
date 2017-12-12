@@ -8,7 +8,7 @@ const CTL_UPDATE_DELAY = 100;
 const { ControlPacket, Event: ProtoEvent } = proto.se.zensum.event_store_proto;
 type IEvent = proto.se.zensum.event_store_proto.IEvent;
 type IControlPacket = proto.se.zensum.event_store_proto.IControlPacket;
-type IPublish = e.zensum.event_store_proto.ControlPacket.IPublish
+type IPublish = proto.se.zensum.event_store_proto.ControlPacket.IPublish;
 
 interface Subscription {
   topic: Topic;
@@ -134,9 +134,9 @@ class BatchManager extends EventEmitter {
     this.timer = new LatchedTimer(this.flush.bind(this), CTL_UPDATE_DELAY);
   }
 
-  publish(topic: Topic, key: Key, body: Uint8Array) {
-    this.pendingPublishes.push({ topic, key, body })
-    setTimeout(this.flush.bind(this), 0)
+  publish(topic: Topic, key: Key, message: Uint8Array) {
+    this.pendingPublishes.push({ topic, key, message });
+    setTimeout(this.flush.bind(this), 0);
   }
 
   subscribe(topic: Topic, key: Key, subscriptionState: boolean) {
