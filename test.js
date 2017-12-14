@@ -6,3 +6,7 @@ const TEST_ID = "AAABXsUq9uIKAAMzAAAAAA";
 const client = new EventStoreClient(EVENT_STORE_WEBSOCKET_URL);
 client.subscribe("sms", TEST_ID, x => console.log(x.length));
 client.rewind("sms", [TEST_ID], false, 100);
+
+client.protocol.on("open", () => {
+  console.log("FOOwat");
+});

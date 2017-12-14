@@ -232,20 +232,21 @@ class EventDispatcher {
 
 class Client {
   eventDispatcher: EventDispatcher;
+  protocol: EventStoreProtocol;
   subMgr: BatchManager;
   rewind: (topic: Topic, keys: string[], fromStart: boolean, n: number) => void;
 
   constructor(url: string) {
     const socket = new WebSocket(url);
     this.eventDispatcher = new EventDispatcher();
-    const protocol = new EventStoreProtocol(socket);
-    protocol.on(
+    this.protocol = new EventStoreProtocol(socket);
+    this.protocol.on(
       "message",
       this.eventDispatcher.incomingEvent.bind(this.eventDispatcher)
     );
     this.subMgr = new BatchManager();
-    this.subMgr.on("flush", protocol.send.bind(protocol));
-    protocol.on("open", this.subMgr.flush.bind(this.subMgr));
+    this.subMgr.on("flush", this.protocol.send.bind(this.protocol));
+    this.protocol.on("open", this.subMgr.flush.bind(this.subMgr));
     this.rewind = this.subMgr.rewind.bind(this.subMgr);
   }
 
