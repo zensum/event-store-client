@@ -6,9 +6,9 @@ const WebSocket =
 const CTL_UPDATE_DELAY = 100;
 
 const { ControlPacket, Event: ProtoEvent } = proto.se.zensum.event_store_proto;
-type IEvent = proto.se.zensum.event_store_proto.IEvent;
-type IControlPacket = proto.se.zensum.event_store_proto.IControlPacket;
-type IPublish = proto.se.zensum.event_store_proto.ControlPacket.IPublish;
+export type IEvent = proto.se.zensum.event_store_proto.IEvent;
+export type IControlPacket = proto.se.zensum.event_store_proto.IControlPacket;
+export type IPublish = proto.se.zensum.event_store_proto.ControlPacket.IPublish;
 
 interface Subscription {
   topic: Topic;
@@ -16,23 +16,23 @@ interface Subscription {
   keysToRemove: string[];
 }
 
-interface PendingSubscription {
+export interface PendingSubscription {
   topic: Topic;
   key: Key;
 }
 
-interface PendingRewind {
+export interface PendingRewind {
   topic: Topic;
   keys: Key[];
   fromStart: boolean;
   n: number;
 }
 
-type Subscriptions = Record<Topic, Record<Key, boolean>>;
+export type Subscriptions = Record<Topic, Record<Key, boolean>>;
 
-type Topic = string;
+export type Topic = string;
 
-type Key = string;
+export type Key = string;
 
 const calcUpdates = (
   subs: PendingSubscription[],
@@ -60,7 +60,7 @@ const calcUpdates = (
   }, topics);
 };
 
-class LatchedTimer {
+export class LatchedTimer {
   target: Function;
   interval: number;
   latch: boolean;
@@ -86,7 +86,7 @@ class LatchedTimer {
   }
 }
 
-class EventStoreProtocol extends EventEmitter {
+export class EventStoreProtocol extends EventEmitter {
   socket: WebSocket;
   buffer: Uint8Array[];
 
@@ -116,7 +116,7 @@ class EventStoreProtocol extends EventEmitter {
   }
 }
 
-class BatchManager extends EventEmitter {
+export class BatchManager extends EventEmitter {
   subscriptions: Subscriptions;
   pendingSubs: PendingSubscription[];
   pendingUnsubs: PendingSubscription[];
@@ -186,9 +186,9 @@ class BatchManager extends EventEmitter {
   }
 }
 
-type EventHandler = (data: Uint8Array) => void;
+export type EventHandler = (data: Uint8Array) => void;
 
-class EventDispatcher {
+export class EventDispatcher {
   dispatchTable: { [topic in Topic]: { [key in Key]: EventEmitter } };
   constructor() {
     this.dispatchTable = {};
@@ -230,7 +230,7 @@ class EventDispatcher {
   }
 }
 
-class Client {
+export default class Client {
   eventDispatcher: EventDispatcher;
   protocol: EventStoreProtocol;
   subMgr: BatchManager;
@@ -264,5 +264,3 @@ class Client {
     this.subMgr.publish(topic, key, message);
   }
 }
-
-module.exports = Client;
