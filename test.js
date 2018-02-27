@@ -1,4 +1,4 @@
-const EventStoreClient = require("./dist/index.js");
+const EventStoreClient = require("./dist/index.js").default;
 
 const EVENT_STORE_WEBSOCKET_URL = "ws://event-store.5z.fyi/realtime";
 const TEST_ID = "AAABXsUq9uIKAAMzAAAAAA";
