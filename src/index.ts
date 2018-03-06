@@ -102,6 +102,7 @@ export class EventStoreProtocol extends EventEmitter {
       this.emit("open");
     });
     this.socket.addEventListener("error", this.emit.bind(this, "error"));
+    this.socket.addEventListener("close", this.emit.bind(this, "close"));
     this.socket.addEventListener("message", e => {
       this.emit("message", ProtoEvent.decode(new Uint8Array(e.data)));
     });
