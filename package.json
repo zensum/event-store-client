@@ -17,6 +17,7 @@
     "ws": "^3.3.2"
   },
   "devDependencies": {
+    "@types/event-emitter-es6": "^1.1.0",
     "typescript": "^2.6.2"
   }
 }
