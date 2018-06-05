@@ -272,7 +272,10 @@ export default class Client {
     this.subMgr.on("flush", this.protocol.send.bind(this.protocol));
     this.protocol.on("open", this.subMgr.flush.bind(this.subMgr));
     this.protocol.on("close", () => {
-      window.setTimeout(this.initializeProtocol.bind(this), 5000);
+      window.setTimeout(
+        this.initializeProtocol.bind(this),
+        500 + Math.random() * 250
+      );
     });
   }
 
