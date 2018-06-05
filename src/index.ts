@@ -252,19 +252,31 @@ export default class Client {
   protocol: EventStoreProtocol;
   subMgr: BatchManager;
   rewind: (topic: Topic, keys: string[], fromStart: boolean, n: number) => void;
+  url: string;
 
   constructor(url: string) {
-    const socket = new WebSocket(url);
+    this.url = url;
     this.eventDispatcher = new EventDispatcher();
+    this.subMgr = new BatchManager();
+    this.initializeProtocol();
+    this.rewind = this.subMgr.rewind.bind(this.subMgr);
+  }
+
+  initializeProtocol() {
+    const socket = new WebSocket(this.url);
     this.protocol = new EventStoreProtocol(socket);
     this.protocol.on(
       "message",
       this.eventDispatcher.incomingEvent.bind(this.eventDispatcher)
     );
-    this.subMgr = new BatchManager();
     this.subMgr.on("flush", this.protocol.send.bind(this.protocol));
     this.protocol.on("open", this.subMgr.flush.bind(this.subMgr));
-    this.rewind = this.subMgr.rewind.bind(this.subMgr);
+    this.protocol.on("close", () => {
+      window.setTimeout(
+        this.initializeProtocol.bind(this),
+        500 + Math.random() * 250
+      );
+    });
   }
 
   subscribe(topic: Topic, key: Key, handler: EventHandler) {
