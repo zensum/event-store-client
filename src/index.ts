@@ -3,6 +3,8 @@ import EventEmitter = require("event-emitter-es6");
 const WebSocket =
   typeof window !== "undefined" ? (window as any).WebSocket : require("ws");
 
+const DEBUG_TAG = "event-store-client";
+
 const CTL_UPDATE_DELAY = 100;
 
 const { ControlPacket, Event: ProtoEvent } = proto.se.zensum.event_store_proto;
@@ -33,6 +35,8 @@ export type Subscriptions = Record<Topic, Record<Key, boolean>>;
 export type Topic = string;
 
 export type Key = string;
+
+const debug = (...args: any[]) => console.debug(DEBUG_TAG, ...args);
 
 const calcUpdates = (
   subs: PendingSubscription[],
@@ -110,9 +114,12 @@ export class EventStoreProtocol extends EventEmitter {
 
   send(data: IControlPacket) {
     const bytes = ControlPacket.encode(data).finish();
+    debug("Trying to send data", data, bytes);
     if (this.socket.readyState != WebSocket.OPEN) {
+      debug("WebSocket not open. Adding data to buffer", data, bytes);
       this.buffer.push(bytes);
     } else {
+      debug("Sending data", data, bytes);
       this.socket.send(bytes);
     }
   }
@@ -137,6 +144,10 @@ export class BatchManager extends EventEmitter {
   }
 
   publish(topic: Topic, key: Key, message: Uint8Array) {
+    debug(
+      "Received message on topic '" + topic + "' with key '" + key + "'",
+      message
+    );
     this.pendingPublishes.push({ topic, key, message });
     setTimeout(this.flush.bind(this), 0);
   }
@@ -176,7 +187,10 @@ export class BatchManager extends EventEmitter {
       publishes: this.pendingPublishes
     });
 
+    debug("Subscribing", this.pendingSubs);
     this.pendingSubs.forEach(this.setSubscription(true));
+
+    debug("Unsubscribing", this.pendingUnsubs);
     this.pendingUnsubs.forEach(this.setSubscription(false));
 
     this.pendingRewinds = [];
@@ -184,6 +198,7 @@ export class BatchManager extends EventEmitter {
     this.pendingSubs = [];
     this.pendingPublishes = [];
 
+    debug("Flushing batch", pck);
     this.emit("flush", pck);
   }
 }
