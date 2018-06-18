@@ -6,6 +6,7 @@ const WebSocket =
 const DEBUG_TAG = "event-store-client";
 
 const CTL_UPDATE_DELAY = 100;
+const INITIAL_RECONNECT_TIMEOUT = 500;
 
 const { ControlPacket, Event: ProtoEvent } = proto.se.zensum.event_store_proto;
 export type IEvent = proto.se.zensum.event_store_proto.IEvent;
@@ -253,6 +254,7 @@ export default class Client {
   subMgr: BatchManager;
   rewind: (topic: Topic, keys: string[], fromStart: boolean, n: number) => void;
   url: string;
+  reconnectTimeout: number;
 
   constructor(url: string) {
     this.url = url;
@@ -260,6 +262,7 @@ export default class Client {
     this.subMgr = new BatchManager();
     this.initializeProtocol();
     this.rewind = this.subMgr.rewind.bind(this.subMgr);
+    this.reconnectTimeout = INITIAL_RECONNECT_TIMEOUT;
   }
 
   initializeProtocol() {
@@ -270,12 +273,16 @@ export default class Client {
       this.eventDispatcher.incomingEvent.bind(this.eventDispatcher)
     );
     this.subMgr.on("flush", this.protocol.send.bind(this.protocol));
-    this.protocol.on("open", this.subMgr.flush.bind(this.subMgr));
+    this.protocol.on("open", () => {
+      this.subMgr.flush.bind(this.subMgr);
+      this.reconnectTimeout = INITIAL_RECONNECT_TIMEOUT;
+    });
     this.protocol.on("close", () => {
       window.setTimeout(
         this.initializeProtocol.bind(this),
-        500 + Math.random() * 250
+        this.reconnectTimeout + Math.random() * 250
       );
+      this.reconnectTimeout = this.reconnectTimeout * 2;
     });
   }
 
