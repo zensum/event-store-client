@@ -268,15 +268,12 @@ export default class Client {
   initializeProtocol() {
     const socket = new WebSocket(this.url);
     this.protocol = new EventStoreProtocol(socket);
-    this.protocol.on(
-      "message",
-      this.eventDispatcher.incomingEvent.bind(this.eventDispatcher)
-    );
-    this.subMgr.on("flush", this.protocol.send.bind(this.protocol));
-    this.protocol.on("open", () => {
-      this.subMgr.flush.bind(this.subMgr);
+    this.protocol.on("message", (...args) => {
+      this.eventDispatcher.incomingEvent.apply(this.eventDispatcher, args);
       this.reconnectTimeout = INITIAL_RECONNECT_TIMEOUT;
     });
+    this.subMgr.on("flush", this.protocol.send.bind(this.protocol));
+    this.protocol.on("open", this.subMgr.flush.bind(this.subMgr));
     this.protocol.on("close", () => {
       window.setTimeout(
         this.initializeProtocol.bind(this),
