@@ -254,10 +254,12 @@ export default class Client {
   subMgr: BatchManager;
   rewind: (topic: Topic, keys: string[], fromStart: boolean, n: number) => void;
   url: string;
+  httpUrl: string;
   reconnectTimeout: number;
 
   constructor(url: string) {
     this.url = url;
+    this.httpUrl = this.url.replace(/^ws/, "http").replace(/realtime\/?$/, "");
     this.eventDispatcher = new EventDispatcher();
     this.subMgr = new BatchManager();
     this.initializeProtocol();
@@ -295,5 +297,16 @@ export default class Client {
 
   publish(topic: Topic, key: Key, message: Uint8Array) {
     this.subMgr.publish(topic, key, message);
+  }
+
+  publishReliably(
+    topic: Topic,
+    key: Key,
+    message: Uint8Array
+  ): Promise<string> {
+    const url = `${this.httpUrl}/publish?topic=${topic}&key=${key}`;
+    return window
+      .fetch(url, { method: "POST", body: message })
+      .then(x => x.text());
   }
 }
