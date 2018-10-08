@@ -1,5 +1,7 @@
 import * as proto from "@zensum/event-store-proto";
-import EventEmitter = require("event-emitter-es6");
+import * as mitt from 'mitt';
+import { Emitter } from "mitt";
+
 const WebSocket =
   typeof window !== "undefined" ? (window as any).WebSocket : require("ws");
 
@@ -91,25 +93,26 @@ export class LatchedTimer {
   }
 }
 
-export class EventStoreProtocol extends EventEmitter {
+export class EventStoreProtocol {
   socket: WebSocket;
   buffer: Uint8Array[];
+  ev: Emitter;
 
   constructor(socket: WebSocket) {
-    super();
     this.buffer = [];
     this.socket = socket;
     this.socket.binaryType = "arraybuffer";
+    this.ev = new mitt();
     this.socket.addEventListener("open", () => {
       const buffered = this.buffer;
       this.buffer = [];
       buffered.forEach(bytes => this.socket.send(bytes));
-      this.emit("open");
+      this.ev.emit("open", {});
     });
-    this.socket.addEventListener("error", this.emit.bind(this, "error"));
-    this.socket.addEventListener("close", this.emit.bind(this, "close"));
+    this.socket.addEventListener("error", this.ev.emit.bind(null, "error"));
+    this.socket.addEventListener("close", this.ev.emit.bind(null, "close"));
     this.socket.addEventListener("message", e => {
-      this.emit("message", ProtoEvent.decode(new Uint8Array(e.data)));
+      this.ev.emit("message", ProtoEvent.decode(new Uint8Array(e.data)));
     });
   }
 
@@ -126,16 +129,16 @@ export class EventStoreProtocol extends EventEmitter {
   }
 }
 
-export class BatchManager extends EventEmitter {
+export class BatchManager {
   subscriptions: Subscriptions;
   pendingSubs: PendingSubscription[];
   pendingUnsubs: PendingSubscription[];
   pendingRewinds: PendingRewind[];
   pendingPublishes: IPublish[];
   timer: LatchedTimer;
-
+  ev: Emitter
   constructor() {
-    super();
+    this.ev = new mitt();
     this.subscriptions = {};
     this.pendingSubs = [];
     this.pendingUnsubs = [];
@@ -200,14 +203,14 @@ export class BatchManager extends EventEmitter {
     this.pendingPublishes = [];
 
     debug("Flushing batch", pck);
-    this.emit("flush", pck);
+    this.ev.emit("flush", pck);
   }
 }
 
 export type EventHandler = (data: Uint8Array) => void;
 
 export class EventDispatcher {
-  dispatchTable: { [topic in Topic]: { [key in Key]: EventEmitter } };
+  dispatchTable: { [topic in Topic]: { [key in Key]: Emitter } };
   constructor() {
     this.dispatchTable = {};
   }
@@ -219,7 +222,7 @@ export class EventDispatcher {
       if (!this.dispatchTable[topic]) {
         this.dispatchTable[topic] = {};
       }
-      this.dispatchTable[topic][key] = new EventEmitter();
+      this.dispatchTable[topic][key] = new mitt();
       return this.dispatchTable[topic][key];
     }
   }
@@ -270,13 +273,13 @@ export default class Client {
   initializeProtocol() {
     const socket = new WebSocket(this.url);
     this.protocol = new EventStoreProtocol(socket);
-    this.protocol.on("message", (...args) => {
-      this.eventDispatcher.incomingEvent.apply(this.eventDispatcher, args);
+    this.protocol.ev.on("message", msg => {
+      this.eventDispatcher.incomingEvent(msg);
       this.reconnectTimeout = INITIAL_RECONNECT_TIMEOUT;
     });
-    this.subMgr.on("flush", this.protocol.send.bind(this.protocol));
-    this.protocol.on("open", this.subMgr.flush.bind(this.subMgr));
-    this.protocol.on("close", () => {
+    this.subMgr.ev.on("flush", this.protocol.send.bind(this.protocol));
+    this.protocol.ev.on("open", this.subMgr.flush.bind(this.subMgr));
+    this.protocol.ev.on("close", () => {
       window.setTimeout(
         this.initializeProtocol.bind(this),
         this.reconnectTimeout + Math.random() * 250
