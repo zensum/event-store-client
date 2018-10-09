@@ -1,5 +1,5 @@
 import * as proto from "@zensum/event-store-proto";
-import * as mitt from 'mitt';
+import * as mitt from 'mitt/dist/mitt.umd';
 import { Emitter } from "mitt";
 
 const WebSocket =
@@ -102,7 +102,7 @@ export class EventStoreProtocol {
     this.buffer = [];
     this.socket = socket;
     this.socket.binaryType = "arraybuffer";
-    this.ev = new mitt();
+    this.ev = new mitt() as Emitter;
     this.socket.addEventListener("open", () => {
       const buffered = this.buffer;
       this.buffer = [];
