@@ -1,5 +1,5 @@
 import * as proto from "@zensum/event-store-proto";
-import * as mitt from 'mitt/dist/mitt.umd';
+const mitt = require("mitt/dist/mitt.umd")
 import { Emitter } from "mitt";
 
 const WebSocket =
