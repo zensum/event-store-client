@@ -307,7 +307,7 @@ export default class Client {
     key: Key,
     message: Uint8Array
   ): Promise<string> {
-    const url = `${this.httpUrl}/publish?topic=${topic}&key=${key}`;
+    const url = `${this.httpUrl}publish?topic=${topic}&key=${key}`;
     return window
       .fetch(url, { method: "POST", body: message })
       .then(x => x.text());
