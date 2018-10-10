@@ -1,6 +1,6 @@
 {
   "name": "@zensum/event-store-client",
-  "version": "0.9.0",
+  "version": "0.8.2",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@zensum/event-store-proto": "^1.2.1",
     "mitt": "^1.1.3",
-    "protobufjs": "^6.8.0",
+    "protobufjs": "^6.8.6",
     "ws": "^3.3.2"
   },
   "devDependencies": {
